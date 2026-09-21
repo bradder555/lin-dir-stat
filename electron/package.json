@@ -15,12 +15,13 @@
     "appId": "dev.bradp.lin-dir-stat",
     "productName": "LinDirStat",
     "asar": false,
+    "afterPack": "./afterPack.js",
     "directories": {
       "output": "dist"
     },
     "files": ["main.js", "package.json"],
     "extraResources": [
-      { "from": "../server", "to": "server", "filter": ["**/*", "!*.log"] },
+      { "from": "../server", "to": "server", "filter": ["**/*"] },
       { "from": "../client/dist", "to": "client/dist" }
     ],
     "linux": {
