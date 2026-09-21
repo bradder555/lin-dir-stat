@@ -15,6 +15,7 @@ jobs:
     outputs:
       new_release_published: ${{ steps.semantic.outputs.new_release_published }}
       new_release_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,6 +50,11 @@ jobs:
       - run: npm install --prefix client
       - run: npm install --prefix electron
       - run: npm run build --prefix client
+
+      - name: Stamp release version into the AppImage filename
+        run: npm version ${{ needs.release.outputs.new_release_version }} --no-git-tag-version --allow-same-version
+        working-directory: electron
+
       - run: npm run dist -- --linux AppImage --${{ matrix.arch }}
         working-directory: electron
 
