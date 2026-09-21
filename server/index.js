@@ -59,33 +59,103 @@ async function pathSize(p) {
   }
 }
 
-// Actions that need root (pacman cache, journal) are display-only: the server
-// never invokes sudo itself, it just shows the exact command to run manually.
-const CLEANUP_ACTIONS = [
+// Checked once at startup, not per-request: which package manager (if any) is
+// actually installed doesn't change while the server is running.
+function commandExists(cmd) {
+  return (process.env.PATH || '').split(path.delimiter).some((dir) => {
+    try {
+      return fs.existsSync(path.join(dir, cmd));
+    } catch {
+      return false;
+    }
+  });
+}
+
+// Native package manager cache-cleaning commands, one entry per distro family.
+// All require root, so — like journal vacuuming below — these are display-only:
+// the server never invokes sudo itself, it just shows the command to run manually.
+const PACKAGE_MANAGERS = [
   {
     id: 'pacman-cache',
     label: 'Pacman package cache',
     description: 'Removes cached package files for versions no longer installed.',
+    binary: 'pacman',
     sizePaths: ['/var/cache/pacman/pkg'],
-    manual: true,
     command: 'sudo pacman -Sc --noconfirm',
   },
   {
-    id: 'journal',
-    label: 'Systemd journal logs',
-    description: 'Vacuums journal logs older than 2 weeks.',
-    sizePaths: ['/var/log/journal'],
-    manual: true,
-    command: 'sudo journalctl --vacuum-time=2weeks',
+    id: 'apt-cache',
+    label: 'APT package cache',
+    description: 'Removes downloaded .deb files from the local package cache.',
+    binary: 'apt-get',
+    sizePaths: ['/var/cache/apt/archives'],
+    command: 'sudo apt-get clean',
   },
   {
-    id: 'npm-cache',
-    label: 'npm cache',
-    description: "Clears the current user's npm package cache.",
-    sizePaths: [path.join(HOME, '.npm', '_cacache')],
-    manual: false,
-    run: () => runOk('npm', ['cache', 'clean', '--force']),
+    id: 'dnf-cache',
+    label: 'DNF package cache',
+    description: 'Removes cached package data and metadata.',
+    binary: 'dnf',
+    sizePaths: ['/var/cache/dnf'],
+    command: 'sudo dnf clean all',
   },
+  {
+    id: 'zypper-cache',
+    label: 'Zypper package cache',
+    description: 'Removes cached package files.',
+    binary: 'zypper',
+    sizePaths: ['/var/cache/zypp/packages'],
+    command: 'sudo zypper clean --all',
+  },
+  {
+    id: 'apk-cache',
+    label: 'APK package cache',
+    description: 'Removes cached package files.',
+    binary: 'apk',
+    sizePaths: ['/var/cache/apk'],
+    command: 'sudo apk cache clean',
+  },
+];
+
+const packageManagerActions = PACKAGE_MANAGERS.filter((pm) => commandExists(pm.binary)).map((pm) => ({
+  id: pm.id,
+  label: pm.label,
+  description: pm.description,
+  sizePaths: pm.sizePaths,
+  manual: true,
+  command: pm.command,
+}));
+
+const journalAction = commandExists('journalctl')
+  ? [
+      {
+        id: 'journal',
+        label: 'Systemd journal logs',
+        description: 'Vacuums journal logs older than 2 weeks.',
+        sizePaths: ['/var/log/journal'],
+        manual: true,
+        command: 'sudo journalctl --vacuum-time=2weeks',
+      },
+    ]
+  : [];
+
+const npmCacheAction = commandExists('npm')
+  ? [
+      {
+        id: 'npm-cache',
+        label: 'npm cache',
+        description: "Clears the current user's npm package cache.",
+        sizePaths: [path.join(HOME, '.npm', '_cacache')],
+        manual: false,
+        run: () => runOk('npm', ['cache', 'clean', '--force']),
+      },
+    ]
+  : [];
+
+const CLEANUP_ACTIONS = [
+  ...packageManagerActions,
+  ...journalAction,
+  ...npmCacheAction,
   {
     id: 'trash',
     label: 'Trash',
