@@ -17,11 +17,38 @@ const confirmCancelBtn = document.getElementById('confirm-cancel');
 const confirmDeleteBtn = document.getElementById('confirm-delete');
 
 const HEADER_H = 18;
-const topColor = d3.scaleOrdinal(d3.schemeSet3);
-const FILE_COLOR = '#dbe0e6';
-const OTHER_COLOR = '#c7cad0';
-const ROOT_COLOR = '#eef0f3';
-const FREE_COLOR = '#eef2f7';
+
+// Same hues in both themes, tuned to different lightness: vivid-on-white for
+// light mode, luminous-on-near-black for dark mode (a straight dark-mode
+// palette import would read as muddy against the light theme, and vice versa).
+const PALETTES = {
+  light: {
+    colors: ['#3d84f7', '#f7931e', '#ef5b5b', '#2ecc71', '#9b59f6', '#14c9c9', '#f2c94c', '#ff6fa5', '#17b3d1', '#6c63ff'],
+    file: '#dbe0e6',
+    other: '#c7cad0',
+    root: '#eef0f3',
+    free: '#eef2f7',
+    fadeTarget: '#ffffff',
+  },
+  dark: {
+    colors: ['#5b9dff', '#ffab4d', '#ff7875', '#4ade80', '#b98af7', '#3fe0d0', '#f7dc6f', '#ff8fc4', '#52d3f0', '#9089fc'],
+    file: '#3a3f47',
+    other: '#4b515b',
+    root: '#242830',
+    free: '#1c2733',
+    fadeTarget: '#1c1f24',
+  },
+};
+// One scaleOrdinal per theme, built once, so a given top-level ancestor keeps
+// the same color across re-renders within a theme instead of reshuffling.
+const topColorByTheme = {
+  light: d3.scaleOrdinal(PALETTES.light.colors),
+  dark: d3.scaleOrdinal(PALETTES.dark.colors),
+};
+
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
 
 let rootNode = null;
 
@@ -406,14 +433,16 @@ function topAncestor(d) {
 }
 
 function nodeColor(d) {
-  if (d.depth === 0) return ROOT_COLOR;
-  if (d.data.isFreeSpace) return FREE_COLOR;
-  if (d.data.path === null) return OTHER_COLOR;
-  if (!d.data.isDirectory) return FILE_COLOR;
+  const palette = PALETTES[currentTheme()];
+  if (d.depth === 0) return palette.root;
+  if (d.data.isFreeSpace) return palette.free;
+  if (d.data.path === null) return palette.other;
+  if (!d.data.isDirectory) return palette.file;
   const anc = topAncestor(d);
+  const topColor = topColorByTheme[currentTheme()];
   const base = d3.color(topColor(anc.data.name));
   const lighten = Math.min((d.depth - 1) * 0.12, 0.55);
-  return d3.interpolateRgb(base, '#ffffff')(lighten);
+  return d3.interpolateRgb(base, palette.fadeTarget)(lighten);
 }
 
 // Free/used is only meaningful at the device level (from df), so the synthetic
@@ -516,6 +545,7 @@ function renderTreemap() {
 function setTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   themeToggleCheckbox.checked = dark;
+  renderTreemap();
 }
 function applyTheme(dark) {
   setTheme(dark);

@@ -355,7 +355,7 @@ body {
 }
 
 .box rect.base {
-  stroke: #ffffff;
+  stroke: var(--surface);
   stroke-width: 1.5px;
   cursor: pointer;
   transition: filter 0.1s ease;
@@ -371,7 +371,7 @@ body {
 
 .box rect.free-space {
   stroke-dasharray: 4 3;
-  stroke: #b7c0cc;
+  stroke: var(--border);
 }
 
 .box text {
@@ -387,7 +387,8 @@ body {
 
 .box text.sub {
   font-size: 10px;
-  fill: #57606f;
+  fill: var(--ink);
+  opacity: 0.65;
 }
 
 #spinner {
