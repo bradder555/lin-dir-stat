@@ -513,8 +513,12 @@ function renderTreemap() {
   });
 }
 
-function applyTheme(dark) {
+function setTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeToggleCheckbox.checked = dark;
+}
+function applyTheme(dark) {
+  setTheme(dark);
   try {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   } catch {
@@ -523,6 +527,18 @@ function applyTheme(dark) {
 }
 themeToggleCheckbox.checked = document.documentElement.getAttribute('data-theme') === 'dark';
 themeToggleCheckbox.addEventListener('change', () => applyTheme(themeToggleCheckbox.checked));
+
+// Follow the OS theme live, but only until the user picks one explicitly
+// (that choice is saved to localStorage and takes over from then on).
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  let hasSavedPreference;
+  try {
+    hasSavedPreference = localStorage.getItem('theme') !== null;
+  } catch {
+    hasSavedPreference = false;
+  }
+  if (!hasSavedPreference) setTheme(e.matches);
+});
 
 window.addEventListener('resize', () => renderTreemap());
 freeSpaceCheckbox.addEventListener('change', () => renderTreemap());
