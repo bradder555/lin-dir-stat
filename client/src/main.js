@@ -29,6 +29,16 @@ const PALETTES = {
     root: '#eef0f3',
     free: '#eef2f7',
     fadeTarget: '#ffffff',
+    categories: {
+      image: '#12b886',
+      video: '#7048e8',
+      audio: '#f59f00',
+      document: '#1c7ed6',
+      archive: '#e8590c',
+      code: '#5c940d',
+      binary: '#495057',
+      system: '#c92a2a',
+    },
   },
   dark: {
     colors: ['#5b9dff', '#ffab4d', '#ff7875', '#4ade80', '#b98af7', '#3fe0d0', '#f7dc6f', '#ff8fc4', '#52d3f0', '#9089fc'],
@@ -37,6 +47,16 @@ const PALETTES = {
     root: '#242830',
     free: '#1c2733',
     fadeTarget: '#1c1f24',
+    categories: {
+      image: '#38d9a9',
+      video: '#9775fa',
+      audio: '#ffc94d',
+      document: '#4dabf7',
+      archive: '#ff922b',
+      code: '#94d82d',
+      binary: '#adb5bd',
+      system: '#ff8787',
+    },
   },
 };
 // One scaleOrdinal per theme, built once, so a given top-level ancestor keeps
@@ -45,6 +65,32 @@ const topColorByTheme = {
   light: d3.scaleOrdinal(PALETTES.light.colors),
   dark: d3.scaleOrdinal(PALETTES.dark.colors),
 };
+
+// Directories are colored by which top-level drive/folder they live under
+// (above); leaf files are colored by what kind of content they are, so the
+// map means something about content once you're zoomed into actual files.
+const EXTENSION_CATEGORIES = {
+  image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'tif', 'heic', 'heif', 'ico', 'avif'],
+  video: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv', 'wmv', 'm4v', 'mpg', 'mpeg'],
+  audio: ['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus'],
+  document: ['pdf', 'doc', 'docx', 'odt', 'txt', 'md', 'rtf', 'xls', 'xlsx', 'ods', 'ppt', 'pptx', 'odp', 'csv', 'epub'],
+  archive: ['zip', 'tar', 'gz', 'bz2', 'xz', 'zst', '7z', 'rar', 'tgz', 'iso'],
+  code: [
+    'js', 'ts', 'jsx', 'tsx', 'mjs', 'py', 'rb', 'go', 'rs', 'c', 'cpp', 'cc', 'h', 'hpp', 'java', 'php', 'sh',
+    'bash', 'css', 'scss', 'html', 'json', 'yml', 'yaml', 'toml', 'sql', 'vue', 'svelte',
+  ],
+  binary: ['exe', 'bin', 'so', 'o', 'dll', 'appimage', 'deb', 'rpm', 'msi'],
+  system: ['log', 'cache', 'tmp', 'bak', 'lock', 'pid', 'swp'],
+};
+const EXTENSION_TO_CATEGORY = Object.fromEntries(
+  Object.entries(EXTENSION_CATEGORIES).flatMap(([category, exts]) => exts.map((ext) => [ext, category]))
+);
+
+function categoryForFile(name) {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return null;
+  return EXTENSION_TO_CATEGORY[name.slice(dot + 1).toLowerCase()] || null;
+}
 
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -437,7 +483,7 @@ function nodeColor(d) {
   if (d.depth === 0) return palette.root;
   if (d.data.isFreeSpace) return palette.free;
   if (d.data.path === null) return palette.other;
-  if (!d.data.isDirectory) return palette.file;
+  if (!d.data.isDirectory) return palette.categories[categoryForFile(d.data.name)] || palette.file;
   const anc = topAncestor(d);
   const topColor = topColorByTheme[currentTheme()];
   const base = d3.color(topColor(anc.data.name));
@@ -508,7 +554,9 @@ function renderTreemap() {
     if (d.data.isDevice) {
       return `${d.data.name}\n${formatBytes(d.data.used)} used / ${formatBytes(d.data.size)} total`;
     }
-    return `${d.data.name}\n${formatBytes(d.data.size)}${
+    const category = !d.data.isDirectory && d.data.path !== null ? categoryForFile(d.data.name) : null;
+    const categoryLabel = category ? ` (${category[0].toUpperCase()}${category.slice(1)})` : '';
+    return `${d.data.name}${categoryLabel}\n${formatBytes(d.data.size)}${
       d.data.isDirectory && !d.data.children ? ' (double-click to expand)' : ''
     }${d.data.children ? ' (double-click to collapse)' : ''}`;
   });
