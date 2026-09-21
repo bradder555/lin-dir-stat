@@ -2,20 +2,44 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [x64, arm64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.new_release_tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -28,19 +52,7 @@ jobs:
       - run: npm run dist -- --linux AppImage --${{ matrix.arch }}
         working-directory: electron
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appimage-${{ matrix.arch }}
-          path: electron/dist/*.AppImage
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*.AppImage
+      - name: Upload AppImage to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ needs.release.outputs.new_release_tag }} electron/dist/*.AppImage --clobber
