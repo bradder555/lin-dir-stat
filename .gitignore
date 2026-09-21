@@ -1,0 +1,4 @@
+node_modules/
+client/dist/
+electron/dist/
+*.log

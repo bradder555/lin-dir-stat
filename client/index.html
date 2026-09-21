@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disk Storage</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header id="topbar">
+      <h1>Disk Storage</h1>
+      <button id="refresh-btn" class="cleanup-btn">Refresh</button>
+    </header>
+    <div id="layout">
+      <aside id="side-panel">
+        <div id="tree-panel" class="panel-half">
+          <div class="panel-heading">Files</div>
+          <div id="tree-content"></div>
+        </div>
+        <div id="cleanup-panel" class="panel-half">
+          <div class="panel-heading">Cleanup</div>
+          <div id="cleanup-content"></div>
+        </div>
+      </aside>
+      <main id="view">
+        <div class="panel-heading-row">
+          <span class="panel-heading">Storage Map</span>
+          <label class="free-space-toggle">
+            <input type="checkbox" id="free-space-checkbox" checked />
+            Show free space
+          </label>
+        </div>
+        <svg id="chart"></svg>
+        <div id="spinner" class="hidden"><div class="spinner"></div></div>
+        <div id="error" class="hidden"></div>
+      </main>
+    </div>
+
+    <div id="context-menu" class="hidden"></div>
+
+    <div id="confirm-modal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-title">Delete this item?</div>
+        <div class="modal-body" id="confirm-modal-body"></div>
+        <div class="modal-actions">
+          <button id="confirm-cancel" class="cleanup-btn">Cancel</button>
+          <button id="confirm-delete" class="cleanup-btn danger">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
