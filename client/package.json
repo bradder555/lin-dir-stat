@@ -1,5 +1,5 @@
 {
-  "name": "disk-storage-util-client",
+  "name": "lin-dir-stat-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",

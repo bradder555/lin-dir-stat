@@ -281,5 +281,5 @@ app.post('/api/delete-path', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`disk-storage-util server listening on http://localhost:${PORT}`);
+  console.log(`lin-dir-stat server listening on http://localhost:${PORT}`);
 });

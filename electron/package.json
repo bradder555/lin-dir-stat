@@ -1,5 +1,5 @@
 {
-  "name": "disk-storage-util-electron",
+  "name": "lin-dir-stat-electron",
   "private": true,
   "version": "1.0.0",
   "main": "main.js",
@@ -12,8 +12,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "dev.bradp.disk-storage-util",
-    "productName": "Disk Storage",
+    "appId": "dev.bradp.lin-dir-stat",
+    "productName": "LinDirStat",
     "asar": false,
     "directories": {
       "output": "dist"
