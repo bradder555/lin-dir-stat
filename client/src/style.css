@@ -347,6 +347,43 @@ body {
   font-weight: 500;
 }
 
+.breadcrumb {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.breadcrumb:empty {
+  display: none;
+}
+
+.breadcrumb-item {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.breadcrumb-item:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-item.active {
+  color: var(--muted);
+  cursor: default;
+  font-weight: 600;
+}
+
+.breadcrumb-item.active:hover {
+  text-decoration: none;
+}
+
+.breadcrumb-sep {
+  color: var(--muted);
+}
+
 #chart {
   display: block;
   width: 100%;

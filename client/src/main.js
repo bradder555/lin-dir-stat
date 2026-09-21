@@ -15,6 +15,7 @@ const confirmModalEl = document.getElementById('confirm-modal');
 const confirmModalBody = document.getElementById('confirm-modal-body');
 const confirmCancelBtn = document.getElementById('confirm-cancel');
 const confirmDeleteBtn = document.getElementById('confirm-delete');
+const mapBreadcrumbEl = document.getElementById('map-breadcrumb');
 
 const HEADER_H = 18;
 
@@ -97,6 +98,12 @@ function currentTheme() {
 }
 
 let rootNode = null;
+// When set, the Storage Map renders this node's subtree full-panel instead
+// of the whole tree ("zoomed in"). null means zoomed all the way out.
+let zoomNode = null;
+// A box click is deferred briefly so a double-click (zoom in) doesn't also
+// fire the single-click expand/collapse handler first.
+let boxClickTimer = null;
 
 const prefetchQueue = [];
 let prefetchRunning = false;
@@ -278,6 +285,25 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hideContextMenu();
 });
 
+// Fetches (if needed) and sets node.children, shared by click-to-expand and
+// double-click-to-zoom since zooming into a node implies expanding it too.
+async function ensureChildren(node) {
+  if (node.children) return node.children;
+  if (node._cache) {
+    node.children = node._cache;
+    enqueuePrefetch(node.children);
+    return node.children;
+  }
+  showSpinner();
+  try {
+    node.children = await fetchChildren(node);
+    enqueuePrefetch(node.children);
+    return node.children;
+  } finally {
+    hideSpinner();
+  }
+}
+
 async function toggleNode(node) {
   if (!node.isDirectory) return;
 
@@ -289,27 +315,57 @@ async function toggleNode(node) {
     return;
   }
 
-  if (node._cache) {
-    // previously fetched (or eagerly prefetched): re-expand instantly, no request needed
-    node.children = node._cache;
-    enqueuePrefetch(node.children);
-    renderAll();
-    return;
-  }
-
-  showSpinner();
   try {
-    node.children = await fetchChildren(node);
-    enqueuePrefetch(node.children);
+    await ensureChildren(node);
   } catch (err) {
     showError(err.message);
   } finally {
-    hideSpinner();
     renderAll();
   }
 }
 
+async function zoomIntoNode(node) {
+  if (!node.isDirectory) return;
+  try {
+    await ensureChildren(node);
+  } catch (err) {
+    showError(err.message);
+    return;
+  }
+  zoomNode = node;
+  renderAll();
+}
+
+function zoomOut() {
+  const current = zoomNode || rootNode;
+  if (!current || !current._parent) return;
+  zoomNode = current._parent === rootNode ? null : current._parent;
+  renderAll();
+}
+
+function zoomTo(node) {
+  zoomNode = node === rootNode ? null : node;
+  renderAll();
+}
+
+function handleBoxClick(node) {
+  if (boxClickTimer) return;
+  boxClickTimer = setTimeout(() => {
+    boxClickTimer = null;
+    toggleNode(node);
+  }, 250);
+}
+
+function handleBoxDblClick(node) {
+  if (boxClickTimer) {
+    clearTimeout(boxClickTimer);
+    boxClickTimer = null;
+  }
+  zoomIntoNode(node);
+}
+
 async function init() {
+  zoomNode = null;
   showSpinner();
   showPanelSpinner(treeSpinnerEl);
   try {
@@ -502,15 +558,38 @@ function childrenWithFreeSpace(d) {
   return d.children;
 }
 
+function renderBreadcrumb() {
+  mapBreadcrumbEl.innerHTML = '';
+  const chain = [];
+  for (let n = zoomNode; n; n = n._parent) chain.unshift(n);
+  if (chain.length === 0) chain.push(rootNode);
+
+  chain.forEach((node, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'breadcrumb-sep';
+      sep.textContent = '›';
+      mapBreadcrumbEl.appendChild(sep);
+    }
+    const isActive = i === chain.length - 1;
+    const crumb = document.createElement('span');
+    crumb.className = `breadcrumb-item${isActive ? ' active' : ''}`;
+    crumb.textContent = node.name;
+    if (!isActive) crumb.addEventListener('click', () => zoomTo(node));
+    mapBreadcrumbEl.appendChild(crumb);
+  });
+}
+
 function renderTreemap() {
   if (!rootNode) return;
+  renderBreadcrumb();
   const width = svg.node().clientWidth;
   const height = svg.node().clientHeight;
   svg.attr('viewBox', `0 0 ${width} ${height}`);
   svg.selectAll('*').remove();
 
   const hierarchyRoot = d3
-    .hierarchy(rootNode, childrenWithFreeSpace)
+    .hierarchy(zoomNode || rootNode, childrenWithFreeSpace)
     .sum((d) => (d.children && d.children.length ? 0 : d.size || 0))
     .sort((a, b) => b.value - a.value);
 
@@ -538,8 +617,12 @@ function renderTreemap() {
     .attr('height', (d) => Math.max(0, d.y1 - d.y0))
     .attr('rx', 3)
     .attr('fill', (d) => nodeColor(d))
-    .on('dblclick', (event, d) => toggleNode(d.data))
-    .on('contextmenu', (event, d) => showContextMenuForNode(event, d.data));
+    .on('click', (event, d) => handleBoxClick(d.data))
+    .on('dblclick', (event, d) => handleBoxDblClick(d.data))
+    .on('contextmenu', (event) => {
+      event.preventDefault();
+      zoomOut();
+    });
 
   groups
     .filter((d) => d.children && d.children.length)
@@ -556,9 +639,13 @@ function renderTreemap() {
     }
     const category = !d.data.isDirectory && d.data.path !== null ? categoryForFile(d.data.name) : null;
     const categoryLabel = category ? ` (${category[0].toUpperCase()}${category.slice(1)})` : '';
-    return `${d.data.name}${categoryLabel}\n${formatBytes(d.data.size)}${
-      d.data.isDirectory && !d.data.children ? ' (double-click to expand)' : ''
-    }${d.data.children ? ' (double-click to collapse)' : ''}`;
+    const hints = [];
+    if (d.data.isDirectory && !d.data.children) hints.push('click to expand');
+    if (d.data.children) hints.push('click to collapse');
+    if (d.data.isDirectory) hints.push('double-click to zoom in');
+    if (zoomNode) hints.push('right-click to zoom out');
+    const hintText = hints.length ? ` (${hints.join(', ')})` : '';
+    return `${d.data.name}${categoryLabel}\n${formatBytes(d.data.size)}${hintText}`;
   });
 
   groups.each(function (d) {
