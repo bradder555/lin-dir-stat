@@ -19,7 +19,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": ["main.js", "package.json"],
+    "files": ["main.js", "preload.js", "splash.html", "package.json"],
     "extraResources": [
       { "from": "../server", "to": "server", "filter": ["**/*"] },
       { "from": "../client/dist", "to": "client/dist" }

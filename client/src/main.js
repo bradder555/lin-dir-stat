@@ -6,6 +6,8 @@ const cleanupContent = document.getElementById('cleanup-content');
 const freeSpaceCheckbox = document.getElementById('free-space-checkbox');
 const refreshBtn = document.getElementById('refresh-btn');
 const spinnerEl = document.getElementById('spinner');
+const treeSpinnerEl = document.getElementById('tree-spinner');
+const cleanupSpinnerEl = document.getElementById('cleanup-spinner');
 const errorEl = document.getElementById('error');
 const contextMenuEl = document.getElementById('context-menu');
 const confirmModalEl = document.getElementById('confirm-modal');
@@ -78,6 +80,12 @@ function showSpinner() {
 }
 function hideSpinner() {
   spinnerEl.classList.add('hidden');
+}
+function showPanelSpinner(el) {
+  el.classList.remove('hidden');
+}
+function hidePanelSpinner(el) {
+  el.classList.add('hidden');
 }
 function showError(msg) {
   errorEl.textContent = msg;
@@ -229,6 +237,7 @@ async function toggleNode(node) {
 
 async function init() {
   showSpinner();
+  showPanelSpinner(treeSpinnerEl);
   try {
     const json = await fetchJSON('/api/root_info');
     const devices = json.devices.map((d) =>
@@ -251,6 +260,7 @@ async function init() {
     rootNode = makeNode({ name: 'All Storage', path: 'ROOT', size: 0, isDirectory: false });
   } finally {
     hideSpinner();
+    hidePanelSpinner(treeSpinnerEl);
     renderAll();
   }
 }
@@ -263,11 +273,14 @@ function renderAll() {
 let cleanupActions = [];
 
 async function loadCleanupActions() {
+  showPanelSpinner(cleanupSpinnerEl);
   try {
     const json = await fetchJSON('/api/cleanup/actions');
     cleanupActions = json.actions;
   } catch {
     cleanupActions = [];
+  } finally {
+    hidePanelSpinner(cleanupSpinnerEl);
   }
   renderCleanupPanel();
 }
@@ -508,5 +521,8 @@ refreshBtn.addEventListener('click', () => {
   loadCleanupActions();
 });
 
-init();
-loadCleanupActions();
+// electronAPI only exists when running inside the Electron shell (injected by
+// preload.js); it's absent when the client is opened directly in a browser.
+Promise.all([init(), loadCleanupActions()]).then(() => {
+  window.electronAPI?.notifyReady();
+});

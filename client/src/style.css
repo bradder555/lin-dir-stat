@@ -70,6 +70,7 @@ body {
 }
 
 .panel-half {
+  position: relative;
   flex: 1 1 50%;
   min-height: 0;
   overflow: auto;
@@ -78,6 +79,20 @@ body {
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(20, 20, 40, 0.05);
   padding: 12px;
+}
+
+.panel-spinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+}
+
+.panel-spinner.hidden {
+  display: none;
 }
 
 .panel-heading {

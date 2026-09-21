@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
@@ -39,7 +39,23 @@ function startServer() {
   });
 }
 
+function createSplashWindow() {
+  const splash = new BrowserWindow({
+    width: 360,
+    height: 220,
+    frame: false,
+    resizable: false,
+    backgroundColor: '#eef0f4',
+    webPreferences: {
+      contextIsolation: true,
+    },
+  });
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  return splash;
+}
+
 async function createWindow() {
+  const splash = createSplashWindow();
   startServer();
   try {
     await waitForServer(SERVER_URL);
@@ -53,10 +69,31 @@ async function createWindow() {
     height: 860,
     backgroundColor: '#eef0f4',
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // The renderer signals 'panels-ready' once the tree, cleanup, and treemap
+  // panels all have data, so the splash stays up through that fetch rather
+  // than just through the initial paint. The timeout and did-fail-load
+  // fallbacks keep the splash from getting stuck up if that signal never
+  // arrives (e.g. the server never came up in time).
+  let revealed = false;
+  const revealMainWindow = () => {
+    if (revealed) return;
+    revealed = true;
+    clearTimeout(revealTimeout);
+    if (!splash.isDestroyed()) splash.destroy();
+    if (!win.isDestroyed()) win.show();
+  };
+  const revealTimeout = setTimeout(revealMainWindow, 20000);
+
+  ipcMain.once('panels-ready', revealMainWindow);
+  win.webContents.on('did-fail-load', revealMainWindow);
+
   win.loadURL(SERVER_URL);
 }
 
