@@ -5,6 +5,7 @@ const treeContent = document.getElementById('tree-content');
 const cleanupContent = document.getElementById('cleanup-content');
 const freeSpaceCheckbox = document.getElementById('free-space-checkbox');
 const refreshBtn = document.getElementById('refresh-btn');
+const themeToggleCheckbox = document.getElementById('theme-toggle-checkbox');
 const spinnerEl = document.getElementById('spinner');
 const treeSpinnerEl = document.getElementById('tree-spinner');
 const cleanupSpinnerEl = document.getElementById('cleanup-spinner');
@@ -511,6 +512,17 @@ function renderTreemap() {
     }
   });
 }
+
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  try {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  } catch {
+    // localStorage unavailable (e.g. privacy mode); theme just won't persist
+  }
+}
+themeToggleCheckbox.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+themeToggleCheckbox.addEventListener('change', () => applyTheme(themeToggleCheckbox.checked));
 
 window.addEventListener('resize', () => renderTreemap());
 freeSpaceCheckbox.addEventListener('change', () => renderTreemap());

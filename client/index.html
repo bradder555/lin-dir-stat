@@ -5,11 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LinDirStat</title>
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Applied synchronously, before first paint, so a saved dark-mode
+      // preference doesn't flash light on load.
+      (function () {
+        try {
+          if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch {}
+      })();
+    </script>
   </head>
   <body>
     <header id="topbar">
       <h1>LinDirStat</h1>
-      <button id="refresh-btn" class="cleanup-btn">Refresh</button>
+      <div id="topbar-actions">
+        <label class="theme-toggle" title="Toggle dark mode">
+          <input type="checkbox" id="theme-toggle-checkbox" />
+          <span class="theme-toggle-track"><span class="theme-toggle-thumb"></span></span>
+        </label>
+        <button id="refresh-btn" class="cleanup-btn">Refresh</button>
+      </div>
     </header>
     <div id="layout">
       <aside id="side-panel">
